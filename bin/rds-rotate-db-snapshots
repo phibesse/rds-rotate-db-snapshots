@@ -5,9 +5,9 @@ require 'aws-sdk'
 require 'optparse'
 
 $opts = {
-  :aws_access_key => ENV["AWS_ACCESS_KEY_ID"],
-  :aws_secret_access_key => ENV["AWS_SECRET_ACCESS_KEY"],
-  :aws_region => ENV["AWS_REGION"],
+  :aws_access_key => ENV["Aws_ACCESS_KEY_ID"],
+  :aws_secret_access_key => ENV["Aws_SECRET_ACCESS_KEY"],
+  :aws_region => ENV["Aws_REGION"],
   :pattern => nil,
   :by_tags => nil,
   :dry_run => false,
@@ -76,7 +76,7 @@ def rotate_em(snapshots)
       puts "  #{time.strftime '%Y-%m-%d %H:%M:%S'} #{snapshot_id} Deleting"
       begin
         $rds.delete_db_snapshot(db_snapshot_identifier: snapshot_id) unless $opts[:dry_run]
-      rescue AWS::RDS::Errors => e
+      rescue Aws::RDS::Errors => e
         backoff()
         retry
       end
@@ -93,7 +93,7 @@ def create_snapshot(name, db_indentifier_ids)
         begin
           $rds.create_db_snapshot(db_snapshot_identifier: name, db_instance_identifier: db_id) unless $opts[:dry_run]
           puts "  #{Time.now.strftime '%Y-%m-%d %H:%M:%S'} Creation snapshot #{name} is pending (db: #{db_id})"
-        rescue AWS::RDS::Errors::InvalidDBInstanceState => e
+        rescue Aws::RDS::Errors::InvalidDBInstanceState => e
           backoff()
           retry
         end
@@ -121,15 +121,15 @@ OptionParser.new do |o|
   o.banner = "Usage: #{script_name} [options] <db_indentifier>\nUsage: #{script_name} --by-tags <tag=value,...> [other options]"
   o.separator ""
 
-  o.on("--aws-access-key ACCESS_KEY", "AWS Access Key") do |v|
+  o.on("--aws-access-key ACCESS_KEY", "Aws Access Key") do |v|
     $opts[:aws_access_key] = v
   end
 
-  o.on("--aws-secret-access-key SECRET_KEY", "AWS Secret Access Key") do |v|
+  o.on("--aws-secret-access-key SECRET_KEY", "Aws Secret Access Key") do |v|
     $opts[:aws_secret_access_key] = v
   end
 
-  o.on("--aws-region REGION", "AWS Region") do |v|
+  o.on("--aws-region REGION", "Aws Region") do |v|
     $opts[:aws_region] = v
   end
 
@@ -204,9 +204,9 @@ end
 
 $backoffed = 0
 begin
-  AWS.config(access_key_id: $opts[:aws_access_key], secret_access_key: $opts[:aws_secret_access_key], region: $opts[:aws_region])
-  $rds = AWS.rds.client
-rescue AWS::RDS::Errors => e
+  Aws.config(access_key_id: $opts[:aws_access_key], secret_access_key: $opts[:aws_secret_access_key], region: $opts[:aws_region])
+  $rds = Aws.rds.client
+rescue Aws::RDS::Errors => e
   backoff()
   retry
 end
@@ -221,7 +221,7 @@ if $opts[:by_tags]
     begin
       these_snapshots = $rds.describe_tags(snapshot_type: 'manual', filters: {'resource-type'=>"snapshot", 'key'=>tag, 'value'=>value}).
         delete_if{ |e| e.status != 'available' }
-    rescue AWS::RDS::Errors => e
+    rescue Aws::RDS::Errors => e
       backoff()
       retry
     end
@@ -245,7 +245,7 @@ if $opts[:by_tags]
     rotate_these = $rds.describe_db_snapshots(db_instance_identifier: all_snapshots.map(&:db_instance_identifier).uniq).
       db_snapshots.delete_if{ |e| !all_snapshots.include?(e.db_snapshot_identifier) }.
       sort {|a,b| a[:snapshot_create_time] <=> b[:snapshot_create_time] }
-  rescue AWS::RDS::Errors => e
+  rescue Aws::RDS::Errors => e
     backoff()
     retry
   end
@@ -255,7 +255,7 @@ else
   begin
     all_snapshots = $rds.describe_db_snapshots(snapshot_type: 'manual').db_snapshots.
       delete_if{ |e| e.status != 'available' }
-  rescue AWS::RDS::Errors => e
+  rescue Aws::RDS::Errors => e
     backoff()
     retry
   end
